@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  kazstreamlink-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kazstreamlink_converter_app
+    # stdin_open и tty больше не нужны, так как это веб-приложение Streamlit
+    # Зависит от mediamtx, чтобы mediamtx запустился первым
+    depends_on:
+      - mediamtx
+    restart: unless-stopped
+    ports:
+      - "8501:8501" # Публикуем порт Streamlit
+    networks:
+      - kazstreamlink_network
+
+  mediamtx:
+    image: bluenviron/mediamtx:latest # Используем официальный образ mediamtx
+    container_name: kazstreamlink_mediamtx_server
+    # Публикуем порты mediamtx на хост-машину
+    # 1935: RTMP (для приема потоков, например, от тестового FFmpeg или реального дрона)
+    # 8554: RTSP (для раздачи сконвертированного потока клиентам)
+    # 8888: HTTP API/Web UI mediamtx (опционально, для управления и мониторинга mediamtx)
+    ports:
+      - "1935:1935" # RTMP
+      - "8554:8554" # RTSP (TCP)
+      - "8555:8555/udp" # RTSP (UDP, если нужно)
+      - "8888:8888" # HTTP API
+    restart: unless-stopped
+    networks:
+      - kazstreamlink_network
+    # Можно смонтировать кастомный mediamtx.yml, если нужна особая конфигурация
+    # volumes:
+    #   - ./mediamtx.yml:/mediamtx.yml
+
+networks:
+  kazstreamlink_network:
+    driver: bridge
